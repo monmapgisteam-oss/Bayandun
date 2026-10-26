@@ -206,7 +206,7 @@ export function runSoum(site: Multi, inp: SoumIn, base: Partial<Params>, road: X
     { label: "Хашааны хэмжээ", value: `${chosen.plot} м²`, norm: "≥ 2,000 м²", ok: chosen.plot >= 2000, src: "Газар өмчлөх тухай хууль — ШАЛГАХ" },
     { label: "Гудамж, зам", value: `${f1(pct(metrics.streets))}%`, norm: "15–25%", ok: pct(metrics.streets) >= 15 && pct(metrics.streets) <= 25, src: "БНбД 30-01-04 — ШАЛГАХ" },
     { label: "Ногоон байгууламж", value: `${f1(pct(greenA))}%`, norm: "≥ 10% (хашааны ногооноос гадна)", ok: pct(greenA) >= 10, src: "ТААМАГЛАЛ" },
-    { label: "Тоглоомын талбай хүртэлх зай", value: `${f1(maxWalk("park"))} м`, norm: "≤ 300 м", ok: inp.park ? maxWalk("park") <= 300 : null, src: "ТААМАГЛАЛ" },
+    { label: "Спорт, амрах талбай хүртэлх зай", value: `${f1(maxWalk("park"))} м`, norm: "≤ 300 м", ok: inp.park ? maxWalk("park") <= 300 : null, src: "ТААМАГЛАЛ" },
     { label: "Шороон замд холбогдсон", value: connector ? `${f1(metrics.connector)} м холбоос` : "үгүй", norm: "гол гудамж замд гарцтай", ok: !!connector, src: "Тэнхлэг" },
   ];
   const bA = (k: Building["k"]) => buildings.filter((b) => b.k === k).reduce((s, b) => s + area([[b.r]]) * b.floors, 0);

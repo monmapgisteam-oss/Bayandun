@@ -85,7 +85,7 @@ function modelUrl(href: string) {
   return url;
 }
 
-function symbol(model: YardModel, shadows = true) {
+export function symbol(model: YardModel, shadows = true) {
   return { type: "point-3d", symbolLayers: [{ type: "object", resource: { href: modelUrl(model.href) }, anchor: "origin", height: model.height, width: null, depth: null, heading: 0, castShadows: shadows }] };
 }
 

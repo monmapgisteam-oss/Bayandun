@@ -4,23 +4,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Polygon from "@arcgis/core/geometry/Polygon";
 import type * as GeoJSON from "geojson";
 import { DEFAULT_PARAMS, diff, edgeBand, runPlan, type Multi, type Params, type XY } from "@/lib/plan";
-import { CAR_SIZE, GARAGE_SIZE, PARKING_SIZE, HOUSE_TYPES, GARAGE_LABEL, PART, commonGardens, yardOf, yardRoadMarks, type HouseType, type PartKey, type Surface, type Yard } from "@/lib/parcelYards";
-import { dropLayer, modId, MOD_TIPS, putLayer, utmLayer } from "@/lib/modmap";
+import { CAR_SIZE, GARAGE_SIZE, PARKING_SIZE, HOUSE_TYPES, GARAGE_LABEL, PART, yardOf, yardRoadMarks, type HouseType, type PartKey, type Surface, type Yard } from "@/lib/parcelYards";
+import { dropLayer, modId, MOD_CLICKS, MOD_TIPS, putLayer, utmLayer } from "@/lib/modmap";
 import { fmtN } from "@/lib/geo";
 import { toLL } from "@/lib/proj";
 import type { Rings } from "@/lib/geom";
 import { useMapCtx } from "../MapCtx";
 import { KV, Section } from "../ui";
 import { useYardArchitecture, YardArchitectureInfo } from "../useYardArchitecture";
+import { communitySpaces } from "@/lib/communitySpaces";
+import { COMMUNITY_KEYS, drawCommunity, EMPTY_SPACES } from "../communityLayers";
 
 type Rec = Partial<Pick<Params, "angle" | "anchor" | "rows" | "localW" | "minLotRatio">>;
 const LOTS: Partial<Params> = { mix: null, lotW: 40, lotD: 50, lotsPerBlock: 4, publicLots: 0 };
 const HH_SIZE = 3.6;
-const L = Object.fromEntries(["green", "gardens", "streets", "asphalt", "roadmarks", "lots", "ground", "shadows", "bldg", "roofs", "cars", "trees", "foliage", "details", "labels", "nums", "site"].map(k => [k, modId(3, `hh-${k}`)]));
+const L = Object.fromEntries(["green", ...COMMUNITY_KEYS, "streets", "asphalt", "roadmarks", "lots", "ground", "shadows", "bldg", "roofs", "cars", "trees", "foliage", "details", "labels", "nums", "site"].map(k => [k, modId(3, `hh-${k}`)]));
 const fill = (color: string, outline = color, width = 0) => ({ type: "simple-fill", color, outline: { color: outline, width } });
 const unique = (field: string, items: [string, unknown][]) => ({ type: "unique-value", field, uniqueValueInfos: items.map(([value, symbol]) => ({ value, symbol })) });
 const surfaces = (items: Surface[], id: string) => items.map(p => ({ g: p.r, a: { k: p.k, color: p.color, id, role: p.role ?? "" } }));
 const surfaceFields = [{ name: "k", type: "string" }, { name: "color", type: "string" }, { name: "id", type: "string" }, { name: "role", type: "string" }] as const;
+// Сонгосон хашааны тодруулга (үндсэн давхаргуудаас тусдаа — сонголт солиход бүгдийг дахин зурахгүй)
+const SEL = modId(3, "hh-selected"), NUM_IDS = [L.labels, L.nums];
 const polygonOf = (m: Multi) => new Polygon({ rings: m.flatMap(p => p.map(r => r.map(toLL))), spatialReference: { wkid: 4326 } });
 
 /** Preview and map share geometry, including all house parameter changes. */
@@ -52,6 +56,9 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
   const [garageTypes, setGarageTypes] = useState<Record<string, HouseType["garage"]>>({});
   const [loadError, setLoadError] = useState("");
   const [selected, setSelected] = useState("");
+  const [showNums, setShowNums] = useState(true);
+  const numsOn = useRef(showNums);
+  numsOn.current = showNums;
   useEffect(() => {
     const controller = new AbortController();
     fetch("/data/site_boundary.geojson", { signal: controller.signal }).then(async r => {
@@ -80,7 +87,8 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
   }).filter((y): y is Yard => !!y) : [], [plan, scheme, houseTypes, garageTypes]);
   const asphalt = useMemo(() => plan ? diff(plan.streets, edgeBand(plan.streets, 1.8)) : [], [plan]);
   const roadmarks = useMemo(() => plan ? yardRoadMarks(yards, plan.streets) : [], [plan, yards]);
-  const gardens = useMemo(() => plan ? commonGardens(plan.green, plan.params.angle) : [], [plan]);
+  // Нийтийн ногоонд: хөлбөмбөг 40×20 м, сагсан бөмбөг 28×15 м, амрах талбай (багтвал)
+  const spaces = useMemo(() => plan ? communitySpaces([plan.green], plan.params.angle) : EMPTY_SPACES, [plan]);
   const preview = yards.find(y => y.id === selected) ?? yards[0];
   const architecture = useYardArchitecture({ map, view, active, yards, prefix: modId(3, "hh") });
   const rendered = useRef<{ map: typeof map; view: typeof view; plan: typeof plan; yards: Yard[]; dim: typeof dim } | null>(null);
@@ -88,7 +96,7 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
   useEffect(() => {
     const ids = Object.values(L);
     if (!map) return;
-    const visible = (on: boolean) => ids.forEach(id => { const layer = map.findLayerById(id); if (layer) layer.visible = on; });
+    const visible = (on: boolean) => ids.forEach(id => { const layer = map.findLayerById(id); if (layer) layer.visible = on && (numsOn.current || !NUM_IDS.includes(id)); });
     if (!active || !plan || !view?.ready || view.type !== dim) { visible(false); return; }
     const prev = rendered.current;
     if (prev?.map === map && prev.view === view && prev.plan === plan && prev.yards === yards && prev.dim === dim) {
@@ -108,7 +116,7 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
         renderer: unique("color", [...new Set(items.map(p => p.a.color))].map(c => [c, fill(c)])) }));
     };
     add("green", "Нийтийн ногоон талбай", plan.green, "#517539");
-    putLayer(map, utmLayer({ id: L.gardens, title: "Нийтийн амрах талбай, тоглоомын хэсэг", geom: "polygon", fields: [...surfaceFields], rows: surfaces(gardens, "Нийтийн талбай"), renderer: unique("color", [...new Set(gardens.map(p => p.color))].map(c => [c, fill(c)])) }));
+    drawCommunity(map, spaces, L as Record<(typeof COMMUNITY_KEYS)[number], string>, is3d);
     add("streets", "Явган зам, хашлага", plan.streets, "#d3cdbb");
     add("asphalt", "Дотоод авто зам", asphalt, "#555b5d");
     putLayer(map, utmLayer({ id: L.roadmarks, title: "Замын тэмдэглэгээ", geom: "polyline", fields: [], rows: roadmarks.map(g => ({ g, a: {} })), renderer: { type: "simple", symbol: { type: "simple-line", color: "#f4f0da", width: 0.7 } } }));
@@ -145,11 +153,34 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
     MOD_TIPS.set(L.cars, carTip);
     for (const key of ["ground", "roofs", "foliage", "details"]) MOD_TIPS.set(L[key], a => { if (a.role === "car") return carTip(a); const k = a.k as PartKey; return { title: `${PART[k].n}. ${PART[k].label} · ${a.id}`, hue: PART[k].color, rows: [] }; });
     MOD_TIPS.set(L.lots, a => ({ title: `${a.id} · айлын хашаа`, hue: "#527b35", rows: [["Талбай", `${fmtN(Number(a.area))} м²`]] }));
+    // Хашааны аль ч хэсэг дээр дарахад тэр хашаа сонгогдоно
+    for (const key of ["lots", "ground", "bldg", "roofs", "foliage", "details"]) MOD_CLICKS.set(L[key], a => setSelected(String(a.id)));
+    for (const id of NUM_IDS) { const layer = map.findLayerById(id); if (layer) layer.visible = numsOn.current; }
+    const sel = map.findLayerById(SEL);
+    if (sel) map.reorder(sel, map.layers.length - 1);
     rendered.current = { map, view, plan, yards, dim };
     }, 150);
     return () => { window.clearTimeout(redraw); visible(false); };
-  }, [map, view, plan, yards, asphalt, roadmarks, gardens, active, dim]);
+  }, [map, view, plan, yards, asphalt, roadmarks, spaces, active, dim]);
   useEffect(() => () => { Object.values(L).forEach(id => dropLayer(map, id)); rendered.current = null; }, [map]);
+  useEffect(() => {
+    if (!map) return;
+    for (const id of NUM_IDS) { const layer = map.findLayerById(id); if (layer && active) layer.visible = showNums; }
+  }, [map, active, showNums]);
+  // 3D байшин, машин дээр дарахад мөн сонгоно
+  useEffect(() => {
+    if (architecture.report.status === "ready" || architecture.report.status === "relative")
+      for (const id of [modId(3, "hh-real-buildings"), modId(3, "hh-real-cars")]) MOD_CLICKS.set(id, a => setSelected(String(a.plot)));
+  }, [architecture.report.status]);
+  const selectedLot = plan?.lots.find(l => l.id === (selected || yards[0]?.id));
+  useEffect(() => {
+    if (!map) return;
+    if (!active || !selectedLot || !view?.ready || view.type !== dim) { dropLayer(map, SEL); return; }
+    putLayer(map, utmLayer({ id: SEL, title: "Сонгосон хашаа", geom: "polygon", fields: [{ name: "id", type: "string" }], rows: [{ g: selectedLot.poly[0] as XY[][], a: { id: selectedLot.id } }],
+      renderer: { type: "simple", symbol: fill("rgba(255,214,10,0.18)", "#ffd60a", 3.5) } }));
+    MOD_TIPS.set(SEL, a => ({ title: `${a.id} · сонгосон хашаа`, hue: "#ffd60a", rows: [["Талбай", `${fmtN(selectedLot.area)} м²`]] }));
+    return () => dropLayer(map, SEL);
+  }, [map, view, active, dim, selectedLot]);
 
   const overview = useCallback(() => {
     if (!view || !plan) return;
@@ -176,6 +207,7 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
     {dim === "3d" && <YardArchitectureInfo {...architecture} />}
     <Section title="Нэг хашааны төлөвлөлт · 2,000 м²">
       <div className="yardFocus"><select className="sel" aria-label="Харах айлын хашаа" value={preview?.id ?? ""} onChange={e => focusYard(e.target.value)}>{yards.map(y => <option key={y.id} value={y.id}>{y.id}</option>)}</select><button className="btn" disabled={!preview} onClick={() => preview && focusYard(preview.id)}>Газрын зурагт ойртуулах</button></div>
+      <label className="suitChk"><input type="checkbox" checked={showNums} onChange={e => setShowNums(e.target.checked)} />Газрын зураг дээрх дугаарыг харуулах</label>
       {preview && <label className="yardTypeSelect"><span>{preview.id} · энэ айлын байшингийн төрөл</span><select className="sel" value={preview.houseType.id} onChange={e => setHouseTypes(current => ({ ...current, [preview.id]: e.target.value }))}>{HOUSE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></label>}
       {preview && <label className="yardTypeSelect"><span>{preview.id} · гаражийн хувилбар</span><select className="sel" value={preview.houseType.garage} onChange={e => setGarageTypes(current => ({ ...current, [preview.id]: e.target.value as HouseType["garage"] }))}>{(Object.keys(GARAGE_LABEL) as HouseType["garage"][]).map(k => <option key={k} value={k}>{GARAGE_LABEL[k]} · {k === "open" ? "1 машин" : `${GARAGE_SIZE.w * GARAGE_SIZE.d} м², 1 машин`}</option>)}</select></label>}
       {preview && <YardPreview yard={preview} />}

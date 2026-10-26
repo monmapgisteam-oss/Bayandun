@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Polygon from "@arcgis/core/geometry/Polygon";
 import type * as GeoJSON from "geojson";
-import { area, diff, edgeBand, type Multi, type Params, type XY } from "@/lib/plan";
-import { CAR_SIZE, GARAGE_SIZE, PART, commonGardens, type PartKey, type Surface } from "@/lib/parcelYards";
+import { area, diff, edgeBand, union, type Multi, type Params, type XY } from "@/lib/plan";
+import { CAR_SIZE, GARAGE_SIZE, PART, type PartKey, type Surface } from "@/lib/parcelYards";
 import { FAC, PLOTS, runSoum, SOUM_DEFAULT, type FacKey, type SoumIn, type SoumPlan } from "@/lib/soumPlan";
 import { dropLayer, modId, MOD_TIPS, putLayer, utmLayer } from "@/lib/modmap";
 import { fmtN } from "@/lib/geo";
 import { toLL } from "@/lib/proj";
 import type { Rings } from "@/lib/geom";
 import siteData from "@/lib/siteData.json";
+import { communitySpaces } from "@/lib/communitySpaces";
+import { COMMUNITY_KEYS, drawCommunity, EMPTY_SPACES } from "../communityLayers";
 import { useMapCtx } from "../MapCtx";
 import { KV, Section } from "../ui";
 import { useYardArchitecture, YardArchitectureInfo } from "../useYardArchitecture";
@@ -20,10 +22,10 @@ const ROAD = siteData.road as XY[];
 const STEPS = [{ n: 1, t: "Бүгд" }, { n: 2, t: "Гудамж" }, { n: 4, t: "Хашаа" }, { n: 0, t: "Норм" }];
 const C = { plot: "#f5d9a8", plotLine: "#7a4b1e", street: "#6b7280", windbreak: "#2f6b3a", house: "#8d5b3e", garage: "#a89a8a", water: "#1e88e5", power: "#e0a100", site: "#ff3b30", tree: "#3f7d3a" };
 const ZONE_COLOR: Record<string, string> = { res: C.plot, green: "#4f9d52", windbreak: C.windbreak, ...Object.fromEntries((Object.keys(FAC) as FacKey[]).map((k) => [k, FAC[k].color])) };
-const FAC_MAP_LABEL: Record<FacKey, string> = { kinder: "Цэцэрлэг", shop: "Худалдаа", park: "Тоглоомын талбай", eng: "Инженерийн талбай" };
+const FAC_MAP_LABEL: Record<FacKey, string> = { kinder: "Цэцэрлэг", shop: "Худалдаа", park: "Спорт, амрах талбай", eng: "Инженерийн талбай" };
 const BLD_LABEL: Record<string, string> = { house: "Амины байшин", garage: "Гараж", gazebo: PART.gazebo.label, greenhouse: PART.greenhouse.label, shed: PART.shed.label, kinder: FAC.kinder.label, shop: FAC.shop.label, eng: "Худгийн байр, дэд станц" };
 const BLD_COLOR: Record<string, string> = { house: C.house, garage: C.garage, gazebo: PART.gazebo.color, greenhouse: PART.greenhouse.color, shed: PART.shed.color, kinder: FAC.kinder.color, shop: FAC.shop.color, eng: FAC.eng.color };
-const L = Object.fromEntries(["zones", "gardens", "streets", "asphalt", "plots", "yardGround", "yardShadows", "bldg", "yardRoofs", "yardFoliage", "yardDetails", "cars", "trees", "center", "connector", "labels", "parts", "facilityLabels", "site"].map((k) => [k, modId(3, `sp-${k}`)]));
+const L = Object.fromEntries(["zones", ...COMMUNITY_KEYS, "streets", "asphalt", "plots", "yardGround", "yardShadows", "bldg", "yardRoofs", "yardFoliage", "yardDetails", "cars", "trees", "center", "connector", "labels", "parts", "facilityLabels", "site"].map((k) => [k, modId(3, `sp-${k}`)]));
 const rgba = (hex: string, a: number) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255, a]; };
 const fill = (color: string, a: number, line = color, width = 0) => ({ type: "simple-fill", color: rgba(color, a), outline: { color: rgba(line, 1), width } });
 const unique = (field: string, items: [string, unknown][]) => ({ type: "unique-value", field, uniqueValueInfos: items.map(([value, symbol]) => ({ value, symbol })) });
@@ -47,7 +49,8 @@ export default function SoumPlanner({ ring, version, active, focusKey = 0 }: { r
   const computed = useRef<{ ring: Rings; version: number; inp: SoumIn; rec: Rec } | null>(null);
   const rendered = useRef<{ map: typeof map; view: typeof view; plan: SoumPlan; step: number; dim: typeof dim } | null>(null);
   const asphalt = useMemo(() => sp ? diff(sp.plan.streets, edgeBand(sp.plan.streets, 1.8)) : [], [sp]);
-  const gardens = useMemo(() => sp ? commonGardens([...sp.facLots.park.flatMap(l => l.poly), ...sp.plan.green], sp.plan.params.angle) : [], [sp]);
+  // Спорт, амрах талбайн хашаа ба үлдэгдэл ногоонд: хөлбөмбөг, сагсан бөмбөг, амрах талбай (багтвал)
+  const spaces = useMemo(() => sp ? communitySpaces([union(sp.facLots.park.map(l => l.poly)), sp.plan.green], sp.plan.params.angle) : EMPTY_SPACES, [sp]);
   useEffect(() => { if (active) setStep(1); }, [active, focusKey]);
   useEffect(() => {
     if (!map || !active) return;
@@ -123,7 +126,7 @@ export default function SoumPlanner({ ring, version, active, focusKey = 0 }: { r
       const fields = [{ name: "k", type: "string" }, { name: "color", type: "string" }, { name: "plot", type: "string" }, { name: "role", type: "string" }] as const;
       const surfaces = (key: string, title: string, items: (Surface & { plot: string })[]) => putLayer(map, utmLayer({ id: L[key], title, geom: "polygon", fields: [...fields], rows: items.map(p => ({ g: esri([p.r]), a: { k: p.k, color: p.color, plot: p.plot, role: p.role ?? "" } })), renderer: unique("color", [...new Set(items.map(p => p.color))].map(c => [c, fill(c, 1)])) }));
       const decoration = (key: string, title: string, field: "parts" | "shadows" | "roofs" | "foliage") => surfaces(key, title, sp.yards.flatMap(y => y[field].map(p => ({ ...p, plot: y.id }))));
-      surfaces("gardens", "Нийтийн амрах, тоглох хэсэг", gardens.map(p => ({ ...p, plot: "Нийтийн талбай" })));
+      drawCommunity(map, spaces, L as Record<(typeof COMMUNITY_KEYS)[number], string>, is3d);
       decoration("yardGround", "Хашааны зам, зогсоол, ногооны талбай", "parts");
       if (!is3d) decoration("yardShadows", "Барилгын сүүдэр", "shadows");
       const rows = sp.buildings.map(b => ({ g: esri([b.r]), a: { k: b.k, color: b.color ?? BLD_COLOR[b.k], h: b.h, floors: b.floors, plot: b.plot, area: area([[b.r]]) } }));
@@ -163,7 +166,7 @@ export default function SoumPlanner({ ring, version, active, focusKey = 0 }: { r
     rendered.current = { map, view, plan: sp, step, dim };
     }, 150);
     return () => { window.clearTimeout(redraw); visible(false); };
-  }, [map, view, sp, asphalt, gardens, active, dim, step]);
+  }, [map, view, sp, asphalt, spaces, active, dim, step]);
   useEffect(() => () => { Object.values(L).forEach(id => dropLayer(map, id)); rendered.current = null; }, [map]);
 
   const fitted = useRef<{ view: typeof view; plan: SoumPlan; key: number } | null>(null);
