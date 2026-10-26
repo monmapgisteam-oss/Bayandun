@@ -1,0 +1,159 @@
+/* 01 · Нэгж талбарын хуваалт — Бөөрөлжүүт-ын CSS-тэй давхцахгүйн тулд .pz дотор хязгаарласан.
+   Өнгө, фонт нь Бөөрөлжүүт-ын токен (--surface, --ink, --line…) — харанхуй горимд ч ажиллана. */
+.shell [hidden] { display: none !important; }
+.pz {
+  --lot: #f5d9a8; --lot-trim: #f0b77a; --pub: #3b82c4; --street: #6b7280; --green: #4f9d52; --warn: #b45309;
+  font-size: 13px; line-height: 1.55; padding-bottom: 24px;
+  .sec { border-bottom: 1px solid var(--line); }
+  .sec summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 18px; font-family: var(--font-manrope), var(--font-sans); font-weight: 700; font-size: 14px; }
+  .sec summary::-webkit-details-marker { display: none; }
+  .sec summary::after { content: "▾"; margin-left: auto; color: var(--ink-3); transition: transform .15s; }
+  .sec:not([open]) summary::after { transform: rotate(-90deg); }
+  .secN { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: color-mix(in srgb, var(--data) 14%, transparent); color: var(--data); }
+  .secBody { padding: 0 18px 14px; display: grid; gap: 10px; }
+
+  .kv { display: flex; flex-direction: row; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12.5px; color: var(--ink-2); }
+  .kv b { color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+  .kv b.off { color: var(--warn); }
+  .btnRow { display: flex; gap: 6px; }
+  .btnRow.wrap { flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--r-sm); padding: 6px 10px; cursor: pointer; font-size: 12.5px; font-weight: 500; }
+  .btn:hover:not(:disabled) { border-color: var(--data); color: var(--data); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.on, .btn.on:hover:not(:disabled) { background: transparent; border-color: var(--data); color: var(--ink); }
+  .btn.ghost { border-color: transparent; background: var(--surface-2); }
+  .btn:focus-visible, .preset:focus-visible, input:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; background: var(--surface-2); border-radius: var(--r); }
+  .seg button { border: 0; background: transparent; border-radius: var(--r-sm); padding: 6px; cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+  .seg button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(15,23,42,.12); }
+  .subhead { font-size: 11.5px; color: var(--ink-3); }
+  .tbl.mix td:first-child, .tbl.mix th:first-child { text-align: left; }
+  .tbl.mix .numIn { width: 84px; margin-left: auto; }
+  .tbl.mix .numIn input { padding: 3px 6px; }
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .preset { border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--r); padding: 8px; cursor: pointer; text-align: left; }
+  .preset b { display: block; font-size: 13px; }
+  .preset small { display: block; font-size: 11px; color: var(--ink-3); line-height: 1.3; }
+  .preset.on { border-color: var(--data); background: color-mix(in srgb, var(--data) 8%, var(--surface)); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+  .num { display: grid; gap: 3px; font-size: 11.5px; color: var(--ink-3); }
+  .num.wide { grid-column: 1 / -1; }
+  .numIn { display: flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface); }
+  .numIn input { width: 100%; border: 0; background: transparent; padding: 5px 8px; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; outline: none; }
+  .numIn i { font-style: normal; padding-right: 8px; color: var(--ink-3); }
+  input[type="range"] { width: 100%; accent-color: var(--data); }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+  .check input { accent-color: var(--data); margin-top: 3px; }
+
+  .note { margin: 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+  .note b { color: var(--ink-2); }
+  .hint { margin: 0; font-size: 12px; color: var(--data); }
+  .warn { margin: 8px 18px; padding: 8px 10px; border-radius: var(--r-sm); background: #fdecea; color: #9b1c1c; font-size: 12px; }
+  .warn.soft { margin: 0; background: #fff6e5; color: var(--warn); }
+
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .kpis div { background: var(--surface-2); border-radius: var(--r); padding: 8px 10px; }
+  .kpis b { display: block; font-family: var(--font-manrope), var(--font-sans); font-size: 20px; font-variant-numeric: tabular-nums; }
+  .kpis span { font-size: 11px; color: var(--ink-3); }
+  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 1px; }
+  .stack i { display: block; height: 100%; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tbl th { text-align: left; font-weight: 600; color: var(--ink-3); font-size: 11px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .tbl td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .tbl th:not(:first-child), .tbl td:not(:first-child) { text-align: right; }
+  .tbl.lots td:last-child, .tbl.lots th:last-child { text-align: left; color: var(--ink-3); }
+  .tbl tr.tot td { font-weight: 700; border-bottom: 0; }
+  .tbl.lots tbody tr { cursor: pointer; }
+  .tbl.lots tbody tr:hover { background: var(--surface-2); }
+  .tbl .selRow { background: color-mix(in srgb, var(--data) 12%, transparent) !important; }
+  .tblWrap { max-height: 320px; overflow: auto; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11.5px; color: var(--ink-2); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -2px; border: 1px solid rgba(0,0,0,.15); }
+  .swEgazar { display: inline-block; flex: none; width: 12px; height: 12px; margin-top: 3px; border-radius: 2px; background: rgba(207, 214, 223, .55); border: 1px solid #8a96a3; }
+  .legend i.ln { background: transparent; border: 0; border-top: 3px solid #ff3b30; height: 0; vertical-align: 3px; }
+
+
+  .card { position: relative; margin: 10px 14px; background: var(--surface); border: 1px solid var(--line-strong); border-left: 3px solid #e11d48; border-radius: var(--r); padding: 12px 14px; display: grid; gap: 6px; }
+  .cardT { font-family: var(--font-manrope), var(--font-sans); font-size: 14px; padding-right: 20px; }
+  .card .x { position: absolute; top: 8px; right: 10px; border: 0; background: transparent; font-size: 20px; cursor: pointer; color: var(--ink-3); }
+  .tbl.coords { margin-top: 4px; }
+
+}
+.brandEmblem { width: 46px; height: 46px; flex: none; display: block; object-fit: contain; }
+
+/* Зүүн цэсгүй shell: хэсэг солих товч самбарын дээд хэсэгт (.secTabs) */
+.shell.shellNoNav { grid-template-columns: minmax(0, 1fr) var(--panel); grid-template-areas: 'head head' 'map panel'; }
+.secTabs { display: grid; gap: 6px; padding: 10px 14px 12px; border-bottom: 1px solid var(--line); }
+.secTab { display: flex; align-items: center; gap: 12px; width: 100%; border: 1px solid transparent; border-radius: var(--r); padding: 10px 12px; background: transparent; color: var(--ink-2); cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
+.secTab:hover:not(.on) { background: var(--surface-2); color: var(--ink); }
+.secTab.on { background: transparent; border-color: var(--data); color: var(--ink); }
+.secTab .secTabN { font-size: 11px; opacity: .8; min-width: 18px; }
+.secTab:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .shell.shellNoNav { grid-template-columns: minmax(0, 1fr); grid-template-rows: 68px minmax(360px, 52dvh) auto; grid-template-areas: 'head' 'map' 'panel'; }
+}
+.headSpacer { flex: 1; }
+
+/* 02 · Айл бүрт: газрын зурагтай ижил геометртэй хашааны тайлбар. */
+.parcelHouses { margin-top: 14px; }
+.yardSummary { padding: 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2); }
+.yardEyebrow { color: var(--ink-3); font-size: 10px; letter-spacing: .1em; font-weight: 700; }
+.yardSummary h3 { margin: 8px 0 5px; font-size: 19px; line-height: 1.3; color: var(--ink); }
+.yardSummary p { margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+.yardMetrics { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; margin: 18px 0; }
+.yardMetrics div { display: grid; gap: 4px; }
+.yardMetrics b { color: var(--ink); font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.yardMetrics b small { font-size: 13px; font-weight: 500; }
+.yardMetrics span { color: var(--ink-3); font-size: 11px; }
+.yardSummary > .btn { width: 100%; }
+.yardFocus { display: flex; flex-wrap: wrap; gap: 8px; }
+.yardFocus .sel { flex: 1; min-width: 100px; }
+.yardFocus .btn { flex: 2; }
+.yardPreview { display: block; width: 100%; max-height: 390px; margin: 14px auto 8px; color: var(--ink-2); border-radius: var(--r); background: var(--surface-2); }
+.yardLegend { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.yardLegend li { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--ink-2); }
+.yardLegend li > span:first-child { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: #8a491b; color: #fff9e9; font-size: 12px; font-weight: 700; }
+.yardLegend i { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.yardLegend small { display: block; color: var(--ink-3); font-size: 11px; margin-top: 2px; }
+.yardDimensions { margin: 12px 0 16px; padding: 12px; background: var(--surface-2); border-radius: var(--r); }
+.yardDimensions > b { display: block; margin-bottom: 8px; font-size: 11px; color: var(--ink-2); }
+.yardDimensions .kv > div { gap: 8px; font-size: 11px; }
+.parcelHouses .sec { margin-top: 18px; }
+.yardTypeSelect { display: grid; gap: 6px; margin: 12px 0; font-size: 11px; color: var(--ink-3); }
+.yardTypeSelect .sel { width: 100%; min-width: 0; }
+.yardTypeMix { display: grid; gap: 10px; margin-top: 14px; }
+.yardTypeMix > div { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 11px; }
+.yardTypeMix i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.yardTypeMix b { margin-left: auto; white-space: nowrap; color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) {
+  .head .masterPlanPicker.compact { flex: 1; min-width: 0; max-width: none; flex-wrap: nowrap; gap: 5px; }
+  .head .masterPlanPicker.compact label { min-width: 0; }
+  .head .masterPlanPicker.compact label > span { display: none; }
+  .head .masterPlanPicker.compact .sel { width: 100%; min-width: 0; max-width: 100%; font-size: 10px; }
+  .head .masterPlanPicker.compact > .btn { padding: 6px; font-size: 10px; }
+  .head .brandEmblem { width: 34px; height: 34px; }
+  .head .brand { gap: 5px; flex: none; }
+  .head .brandSub b { font-size: 10px; }
+  .head .headSpacer { display: none; }
+  .head { gap: 7px; padding-inline: 10px; }
+  .head > .iconBtn { flex: none; margin-left: 0; }
+}
+
+/* Толгойн өндөр (Бөөрөлжүүт: 80 px) */
+:root { --head: 58px; }
+@media (min-width: 901px) { .head .brandSub b { font-size: 15px; } } /* Бөөрөлжүүт 16 px − 1 */
+
+/* 02 · «8 га-д систем өөрөө» төлөвлөгч */
+.soumPlanner .swatch { width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.soumPlanner .soumFac { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 2px; }
+.soumPlanner .stepper { grid-template-columns: repeat(4, 1fr); }
+.soumPlanner .yardFocus { margin-top: 12px; margin-bottom: 8px; }
+.yardHeightInfo { padding: 12px; margin: 12px 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.yardHeightInfo summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+.yardHeightInfo p { font-size: 11px; color: var(--ink-3); }
+.yardHeightInfo .tbl th, .yardHeightInfo .tbl td { padding: 6px 4px; font-size: 10px; }

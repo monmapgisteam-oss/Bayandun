@@ -1,0 +1,12 @@
+# Үүсгэгддэг гарц (web/scripts/export-default.mjs)
+outputs/*
+!outputs/.gitkeep
+
+# Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+.env*
