@@ -72,8 +72,21 @@ export async function sampleTerrainLevels(map: EsriMap, items: { id: string; gro
   } finally { window.clearTimeout(timeout); signal.removeEventListener("abort", cancel); }
 }
 
+// ArcGIS data: URI-тай GLB загвар бүрийг ≈3 с гол урсгалд боловсруулж 3D-г гацаадаг байсан — нэг удаа blob: URL болгоно
+const blobUrls = new Map<string, string>();
+function modelUrl(href: string) {
+  let url = blobUrls.get(href);
+  if (!url) {
+    const bin = atob(href.slice(href.indexOf(",") + 1)), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    url = URL.createObjectURL(new Blob([bytes], { type: "model/gltf-binary" }));
+    blobUrls.set(href, url);
+  }
+  return url;
+}
+
 function symbol(model: YardModel, shadows = true) {
-  return { type: "point-3d", symbolLayers: [{ type: "object", resource: { href: model.href }, anchor: "origin", height: model.height, width: null, depth: null, heading: 0, castShadows: shadows }] };
+  return { type: "point-3d", symbolLayers: [{ type: "object", resource: { href: modelUrl(model.href) }, anchor: "origin", height: model.height, width: null, depth: null, heading: 0, castShadows: shadows }] };
 }
 
 function houseReport(items: Placement[]): HouseHeight[] {
