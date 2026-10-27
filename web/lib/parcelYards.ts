@@ -30,6 +30,7 @@ export const PART = {
   shed: { n: 7, label: "Агуулах · 18 м²", color: "#86755d" },
   lawn: { n: 9, label: "Мод, зүлэг, цэцэрлэг", color: "#56813a" },
   gate: { n: 10, label: "Хашаа, урд талын хаалга", color: "#635947" },
+  field: { n: 11, label: "Тариалан, хадлан (5,000 м² хашаанд)", color: "#b29d5f" },
 } as const;
 export type PartKey = keyof typeof PART;
 export type Surface = { r: XY[]; color: string; k: PartKey; role?: "car" };
@@ -44,7 +45,7 @@ export type Yard = {
 export type YardFrame = { A: XY; u: XY; n: XY; W: number; D: number };
 
 /** Prefer the 40 m frontage, including corner lots with a second street. */
-export function frameOf(poly: Multi, streets: Multi): YardFrame | null {
+export function frameOf(poly: Multi, streets: Multi, front = 40): YardFrame | null {
   const c = corners(poly);
   if (c.length < 4) return null;
   const cen: XY = [c.reduce((s, q) => s + q[0], 0) / c.length, c.reduce((s, q) => s + q[1], 0) / c.length];
@@ -57,7 +58,7 @@ export function frameOf(poly: Multi, streets: Multi): YardFrame | null {
     const m: XY = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     if ((cen[0] - m[0]) * n[0] + (cen[1] - m[1]) * n[1] < 0) n = [-n[0], -n[1]];
     if (inside([m[0] - n[0] * 3, m[1] - n[1] * 3], streets) &&
-      (!best || Math.abs(W - 40) < Math.abs(best.W - 40))) best = { A: a, u, n, W };
+      (!best || Math.abs(W - front) < Math.abs(best.W - front))) best = { A: a, u, n, W };
   }
   if (!best) return null;
   const f = best;
@@ -65,10 +66,8 @@ export function frameOf(poly: Multi, streets: Multi): YardFrame | null {
   return { ...f, D };
 }
 
-export function yardOf(id: string, poly: Multi, streets: Multi, house: HouseType): Yard | null {
-  const f = frameOf(poly, streets);
-  if (!f) return null;
-  const sa = f.W / 40, sd = f.D / 50;
+/** Хашааны зургийн туслах функцууд: хүрээний (W×D) координатыг sa, sd масштабаар UTM руу. */
+function kit(f: YardFrame, sa: number, sd: number, out: Yard) {
   const P = (x: number, y: number): XY => [f.A[0] + f.u[0] * x * sa + f.n[0] * y * sd, f.A[1] + f.u[1] * x * sa + f.n[1] * y * sd];
   const ring = (pts: XY[]): XY[] => [...pts.map(([x, y]) => P(x, y)), P(...pts[0])];
   const R = (x0: number, y0: number, x1: number, y1: number) => ring([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]);
@@ -76,10 +75,58 @@ export function yardOf(id: string, poly: Multi, streets: Multi, house: HouseType
     const a = i * Math.PI / 8, radius = r * (1 + 0.1 * Math.sin(i * 2.7 + seed));
     return [x + radius * Math.cos(a), y + radius * Math.sin(a)];
   }));
-  const out: Yard = { id, frame: f, label: P(14.5, 25), houseType: house, houseArea: 0, garageArea: 0, parts: [], roofs: [], shadows: [], details: [], bldgs: [], cars: [], trees: [], foliage: [], nums: [] };
   const surface = (k: PartKey, color: string, r: XY[]) => out.parts.push({ k, color, r });
   const line = (k: PartKey, color: string, width: number, pts: XY[]) => out.details.push({ k, color, width, r: pts.map(([x, y]) => P(x, y)) });
   const number = (k: PartKey, x: number, y: number) => out.nums.push({ n: PART[k].n, p: P(x, y) });
+  const building = (k: PartKey, a: number, b: number, c: number, e: number, h: number, colors: string[], style: HouseType["roof"] = "hip", numbered = true) => {
+    const r = R(a, b, c, e), mid = (a + c) / 2, ridge0 = b + Math.min((c - a) / 3, (e - b) / 3), ridge1 = e - (ridge0 - b);
+    out.bldgs.push({ k, r, h });
+    out.shadows.push({ k, color: "#344529", r: R(a + 0.9, b + 1.1, c + 1.1, e + 1.5) });
+    const facets: XY[][] = style === "flat" ? [[[a, b], [c, b], [c, e], [a, e]]] : style === "gable" ? [
+      [[a, b], [mid, b], [mid, e], [a, e]], [[mid, b], [c, b], [c, e], [mid, e]],
+    ] : [
+      [[a, b], [mid, ridge0], [mid, ridge1], [a, e]],
+      [[c, b], [c, e], [mid, ridge1], [mid, ridge0]],
+      [[a, b], [c, b], [mid, ridge0]], [[a, e], [mid, ridge1], [c, e]],
+    ];
+    facets.forEach((pts, i) => out.roofs.push({ k, color: colors[i % colors.length], r: ring(pts) }));
+    line(k, "#b7bbac", 0.45, [[a, b], [c, b], [c, e], [a, e], [a, b]]);
+    if (style === "hip") {
+      line(k, "#899097", 0.45, [[a, b], [mid, ridge0], [c, b]]);
+      line(k, "#899097", 0.45, [[a, e], [mid, ridge1], [c, e]]);
+      line(k, "#a3a6a2", 0.5, [[mid, ridge0], [mid, ridge1]]);
+    } else if (style === "gable") line(k, "#b2b4a3", .6, [[mid, b], [mid, e]]);
+    else {
+      line(k, "#e6e0cc", 1.3, [[a + .35, b + .35], [c - .35, b + .35], [c - .35, e - .35], [a + .35, e - .35], [a + .35, b + .35]]);
+      out.roofs.push({ k, color: "#647e82", r: R(a + .6, Math.max(b + .6, e - 2.5), Math.min(a + 2.8, c - .6), e - .6) });
+    }
+    if (numbered) number(k, mid, (b + e) / 2);
+  };
+  return { P, ring, R, circle, surface, line, number, building };
+}
+const emptyYard = (id: string, f: YardFrame, house: HouseType): Yard => ({ id, frame: f, label: f.A, houseType: house, houseArea: 0, garageArea: 0, parts: [], roofs: [], shadows: [], details: [], bldgs: [], cars: [], trees: [], foliage: [], nums: [] });
+
+/**
+ * Хашааны хэмжээгээр загвар сонгоно: ≤1,200 м² (20×35) — авсаархан; ≥60 м нүүртэй (100×50) — урд 40×50-д ердийн хашаа,
+ * үлдсэнд тариалан; бусад (40×50) — ердийн хашаа. `front` = төлөвлөсөн нүүрний өргөн (булангийн хашаанд аль гудамжийг сонгох).
+ */
+export function yardOf(id: string, poly: Multi, streets: Multi, house: HouseType, front = 40): Yard | null {
+  const f = frameOf(poly, streets, front);
+  if (!f) return null;
+  if (f.W * f.D <= 1200) return compactYard(id, f, house);
+  if (f.W >= 60 && f.D >= 45) {
+    const out = layoutYard(id, { ...f, W: 40, D: 50 }, house);
+    out.frame = f;
+    addField(out, f);
+    return out;
+  }
+  return layoutYard(id, f, house);
+}
+
+function layoutYard(id: string, f: YardFrame, house: HouseType): Yard {
+  const sa = f.W / 40, sd = f.D / 50;
+  const out = emptyYard(id, f, house);
+  const { P, R, circle, surface, line, number, building } = kit(f, sa, sd, out);
   const w = house.w / sa, d = house.d / sd;
   // Гүехэн (40 м) хашаанд залгаа гаражийн өмнөх зогсоол багтахаар байшинг арагш шилжүүлнэ: 1 м + зогсоол + гараж + 0.3 м
   const y0 = Math.max(14, (sd + PARKING_SIZE.d + GARAGE_SIZE.d + 0.3) / sd), x0 = 14.5 - w / 2, x1 = x0 + w, y1 = y0 + d;
@@ -110,30 +157,6 @@ export function yardOf(id: string, poly: Multi, streets: Multi, house: HouseType
     for (const dx of [0.45, 1.05, 1.65]) line("beds", dx === 1.05 ? "#91ad51" : "#4b722d", 0.9, [[x + dx, 23], [x + dx, 33]]);
   }
 
-  const building = (k: PartKey, a: number, b: number, c: number, e: number, h: number, colors: string[], style: HouseType["roof"] = "hip", numbered = true) => {
-    const r = R(a, b, c, e), mid = (a + c) / 2, ridge0 = b + Math.min((c - a) / 3, (e - b) / 3), ridge1 = e - (ridge0 - b);
-    out.bldgs.push({ k, r, h });
-    out.shadows.push({ k, color: "#344529", r: R(a + 0.9, b + 1.1, c + 1.1, e + 1.5) });
-    const facets: XY[][] = style === "flat" ? [[[a, b], [c, b], [c, e], [a, e]]] : style === "gable" ? [
-      [[a, b], [mid, b], [mid, e], [a, e]], [[mid, b], [c, b], [c, e], [mid, e]],
-    ] : [
-      [[a, b], [mid, ridge0], [mid, ridge1], [a, e]],
-      [[c, b], [c, e], [mid, ridge1], [mid, ridge0]],
-      [[a, b], [c, b], [mid, ridge0]], [[a, e], [mid, ridge1], [c, e]],
-    ];
-    facets.forEach((pts, i) => out.roofs.push({ k, color: colors[i % colors.length], r: ring(pts) }));
-    line(k, "#b7bbac", 0.45, [[a, b], [c, b], [c, e], [a, e], [a, b]]);
-    if (style === "hip") {
-      line(k, "#899097", 0.45, [[a, b], [mid, ridge0], [c, b]]);
-      line(k, "#899097", 0.45, [[a, e], [mid, ridge1], [c, e]]);
-      line(k, "#a3a6a2", 0.5, [[mid, ridge0], [mid, ridge1]]);
-    } else if (style === "gable") line(k, "#b2b4a3", .6, [[mid, b], [mid, e]]);
-    else {
-      line(k, "#e6e0cc", 1.3, [[a + .35, b + .35], [c - .35, b + .35], [c - .35, e - .35], [a + .35, e - .35], [a + .35, b + .35]]);
-      out.roofs.push({ k, color: "#647e82", r: R(a + .6, Math.max(b + .6, e - 2.5), Math.min(a + 2.8, c - .6), e - .6) });
-    }
-    if (numbered) number(k, mid, (b + e) / 2);
-  };
   if (house.shape === "l") {
     building("house", x0 + 4, y0, x1, y1, house.floors * HOUSE_FLOOR_HEIGHT, house.colors, house.roof);
     building("house", x0, y0 + 4, x0 + 4, y1, house.floors * HOUSE_FLOOR_HEIGHT, house.colors, house.roof, false);
@@ -193,6 +216,80 @@ export function yardOf(id: string, poly: Multi, streets: Multi, house: HouseType
   for (const x of [gate0, gate1]) surface("gate", "#d2c7ab", R(x - 0.45, 0.1, x + 0.45, 1.2));
   for (let x = gate0 + .5; x < gate1; x += 0.8) line("gate", "#b3b9a6", 0.4, [[x, 0.2], [x, 0.9]]);
   return out;
+}
+
+/**
+ * 700 м² (20×35 м) авсаархан хашаа, метрээр: урд баруун талд зогсоол ба гараж (эсвэл ил зогсоол), зүүн талд байшин,
+ * ар талд ногооны талбай, агуулах, мод. Нэг айлд нэг машин.
+ */
+function compactYard(id: string, f: YardFrame, house: HouseType): Yard {
+  const out = emptyYard(id, f, house), W = f.W, D = f.D;
+  const { P, R, circle, surface, line, number, building } = kit(f, 1, 1, out);
+  const gW = GARAGE_SIZE.w, gx = W - 1.2 - gW, gate0 = gx - .4, gate1 = gx + gW + .4;
+  const hw = Math.min(house.w, gx - 2.4), hd = Math.min(house.d, 9), x0 = 1.2, x1 = x0 + hw;
+  out.houseType = { ...house, w: Math.round(hw * 10) / 10, d: hd }; // 20 м нүүрэнд багтаасан бодит хэмжээ
+  const y0 = 1 + PARKING_SIZE.d + 1.5, y1 = y0 + hd;
+  const bayX = gx + (gW - PARKING_SIZE.w) / 2;
+  for (let x = 1; x < W - 1; x += 4) surface("lawn", "#638b42", R(x, 1, Math.min(x + 1.8, W - 1), D - 1));
+  surface("paved", "#c9c3b5", R(x0 - .8, y0 - 1, x1 + .8, y1 + 1));
+  surface("paved", "#cec8ba", R(gate0, .7, gate1, y0));
+  surface("paved", "#cec8ba", R(x0 + hw / 2 - .75, 1, x0 + hw / 2 + .75, y0 - 1));
+  surface("parking", "#aaa99f", R(bayX, 1, bayX + PARKING_SIZE.w, 1 + PARKING_SIZE.d));
+  for (const x of [bayX, bayX + PARKING_SIZE.w]) line("parking", "#eeeadd", 0.65, [[x, 1], [x, 1 + PARKING_SIZE.d]]);
+  building("house", x0, y0, x1, y1, house.floors * HOUSE_FLOOR_HEIGHT, house.colors, house.roof);
+  out.houseArea = area([[out.bldgs[0].r]]);
+  out.label = P(x0 + hw / 2, y0 + hd / 2);
+  const yBack = Math.max(y1, house.garage !== "open" ? y0 + GARAGE_SIZE.d : 0) + 2;
+  if (house.garage !== "open") {
+    building("parking", gx, y0, gx + gW, y0 + GARAGE_SIZE.d, GARAGE_SIZE.h, house.colors, house.roof === "flat" ? "flat" : "gable");
+    out.garageArea = area([[out.bldgs[out.bldgs.length - 1].r]]);
+    line("parking", "#d6d8cd", 1.6, [[gx + (gW - 3.2) / 2, y0], [gx + (gW + 3.2) / 2, y0]]);
+  } else number("parking", gx + gW / 2, 4);
+  // Ар тал: ногооны талбай (эгнээтэй), ар зүүн буланд хүлэмж 6×4 м, ар баруун буланд агуулах 4×4.5 м
+  const ghY1 = D - 1.6, ghY0 = ghY1 - 4, bx1 = W - 6.5, by1 = Math.min(yBack + 9, ghY0 - .8);
+  surface("beds", "#b09a6b", R(x0, yBack, bx1, by1));
+  for (let x = x0 + .4; x < bx1 - 1.5; x += 2.8) {
+    surface("beds", "#66543a", R(x, yBack + .5, x + 2.1, by1 - .5));
+    for (const dx of [0.45, 1.05, 1.65]) line("beds", dx === 1.05 ? "#91ad51" : "#4b722d", 0.9, [[x + dx, yBack + 1], [x + dx, by1 - 1]]);
+  }
+  building("greenhouse", x0, ghY0, x0 + 6, ghY1, 1.8, ["#a7cfc3", "#76a99f", "#c3ded2", "#a3cabc"]);
+  for (let x = x0 + .6; x < x0 + 6; x += 0.9) line("greenhouse", "#edf1dd", 0.55, [[x, ghY0], [x, ghY1]]);
+  building("shed", W - 5.2, D - 6, W - 1.2, D - 1.5, 2.4, ["#8a7962", "#655b4e", "#a4947a", "#7a6954"]);
+  number("paved", x0 + hw / 2, 4); number("beds", (x0 + bx1) / 2, (yBack + by1) / 2); number("gate", (gate0 + gate1) / 2, 0.8);
+  // Нэг машин зогсоол дээр
+  const carX = bayX + (PARKING_SIZE.w - CAR_SIZE.w) / 2, carY = 1.5;
+  out.cars.push(R(carX, carY, carX + CAR_SIZE.w, carY + CAR_SIZE.d));
+  out.roofs.push({ k: "parking", role: "car", color: "#e8e8df", r: out.cars[0] });
+  for (const dy of [.7, 3.3]) out.roofs.push({ k: "parking", role: "car", color: "#354a54", r: R(carX + .15, carY + dy, carX + CAR_SIZE.w - .15, carY + dy + .6) });
+  // Модыг барилга, ногооны талбайгаас зайтай, ар хашаа ба хажуугаар
+  let seed = 0, lawnNo = false;
+  const tree = (x: number, y: number, r: number) => {
+    const crown = circle(x, y, r + .5);
+    if (out.bldgs.some(b => crown.some(p => inside(p, [[b.r]]))) || (x + r > x0 && x - r < bx1 && y + r > yBack && y - r < by1)) return;
+    if (y - r < y0 && x + r > gate0) return;
+    out.trees.push({ p: P(x, y), r });
+    out.foliage.push({ k: "lawn", color: ["#3a642d", "#526f2c", "#628539", "#436f37"][seed % 4], r: circle(x, y, r, seed) });
+    out.foliage.push({ k: "lawn", color: ["#7e9d48", "#a3ad59", "#91ae57", "#6c984b"][seed % 4], r: circle(x - r * .24, y + r * .24, r * .62, seed + 1) });
+    if (!lawnNo) { number("lawn", x, y); lawnNo = true; }
+    seed++;
+  };
+  for (let x = 2.2; x < W - 6; x += 4) tree(x, D - 2.2, 1.4);
+  for (let y = yBack; y < D - 4; y += 5) tree(W - 2.2, y, 1.3);
+  for (let y = y0; y < y1; y += 4.5) tree(W - 2.2 - gW - 1.6, y + 1, 0.9);
+  line("gate", "#e1d8bd", 1.25, [[gate0, 0.5], [0.5, 0.5], [0.5, D - .5], [W - .5, D - .5], [W - .5, 0.5], [gate1, 0.5]]);
+  line("gate", "#4f5549", 0.85, [[gate0, 0.5], [gate1, 0.5]]);
+  for (const x of [gate0, gate1]) surface("gate", "#d2c7ab", R(x - 0.45, 0.1, x + 0.45, 1.2));
+  return out;
+}
+
+/** 5,000 м² (100×50 м) хашааны урд 40×50-аас бусад хэсэг: хашаагаар хүрээлсэн тариалан, ар талд хадлан. */
+function addField(out: Yard, f: YardFrame) {
+  const { R, surface, line, number } = kit(f, 1, 1, out), W = f.W, D = f.D, x0 = 40.5, x1 = W - 1;
+  surface("field", "#b7a46a", R(x0, 1, x1, D - 1));
+  for (let x = x0 + 1; x < x1 - 1.4; x += 3) surface("field", "#8f7d4e", R(x, 2, x + 1.4, D - 7));
+  surface("field", "#9fb36a", R(x0 + 1, D - 6, x1 - 1, D - 2));
+  line("gate", "#e1d8bd", 1.25, [[39.5, .5], [W - .5, .5], [W - .5, D - .5], [39.5, D - .5]]);
+  number("field", (x0 + x1) / 2, D / 2);
 }
 
 /** Lane markings follow the actual street width at each yard frontage. */

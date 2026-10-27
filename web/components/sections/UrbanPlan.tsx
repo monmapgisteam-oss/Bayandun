@@ -459,7 +459,7 @@ export default function UrbanPlan({ zones, zoneSel, setZoneSel, active = true }:
           </select>
         </label>
         <div className="segTabs planModes" role="tablist" aria-label="Төлөвлөх арга">
-          <button role="tab" aria-selected={planMode === "parcel"} className={planMode === "parcel" ? "on" : ""} disabled={busy} onClick={() => { setPlanMode("parcel"); setDim("2d"); setParcelFocus(n => n + 1); }}>Айл бүрт · 2,000 м² нэгж талбар</button>
+          <button role="tab" aria-selected={planMode === "parcel"} className={planMode === "parcel" ? "on" : ""} disabled={busy} onClick={() => { setPlanMode("parcel"); setDim("2d"); setParcelFocus(n => n + 1); }}>Айл бүрт · нэгж талбар</button>
           <button role="tab" aria-selected={planMode === "auto"} className={planMode === "auto" ? "on" : ""} disabled={busy} onClick={() => { setPlanMode("auto"); setDim("2d"); setAutoFocus(n => n + 1); }}>8 га-д систем өөрөө · амины байшин</button>
         </div>
       </div>

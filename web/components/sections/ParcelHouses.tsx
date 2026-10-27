@@ -16,7 +16,10 @@ import { communitySpaces } from "@/lib/communitySpaces";
 import { COMMUNITY_KEYS, drawCommunity, EMPTY_SPACES } from "../communityLayers";
 
 type Rec = Partial<Pick<Params, "angle" | "anchor" | "rows" | "localW" | "minLotRatio">>;
-const LOTS: Partial<Params> = { mix: null, lotW: 40, lotD: 50, lotsPerBlock: 4, publicLots: 0 };
+// Айл бүрийн хашааны хэмжээ: 700 м² нь egazar-ын хөрш нэгж талбартай ижил 20×35 м; 5,000 м² нь урд 40×50 хашаа + тариалан
+const SIZES = { 700: { w: 20, d: 35, lpb: 8 }, 2000: { w: 40, d: 50, lpb: 4 }, 5000: { w: 100, d: 50, lpb: 2 } } as const;
+type Size = keyof typeof SIZES;
+const lotsOf = (size: Size): Partial<Params> => ({ mix: null, lotW: SIZES[size].w, lotD: SIZES[size].d, lotsPerBlock: SIZES[size].lpb, publicLots: 0 });
 const HH_SIZE = 3.6;
 const L = Object.fromEntries(["green", ...COMMUNITY_KEYS, "streets", "asphalt", "roadmarks", "lots", "ground", "shadows", "bldg", "roofs", "cars", "trees", "foliage", "details", "labels", "nums", "site"].map(k => [k, modId(3, `hh-${k}`)]));
 const fill = (color: string, outline = color, width = 0) => ({ type: "simple-fill", color, outline: { color: outline, width } });
@@ -29,22 +32,22 @@ const polygonOf = (m: Multi) => new Polygon({ rings: m.flatMap(p => p.map(r => r
 
 /** Preview and map share geometry, including all house parameter changes. */
 function YardPreview({ yard }: { yard: Yard }) {
-  const f = yard.frame;
+  const f = yard.frame, W = Math.round(f.W), D = Math.round(f.D), k = Math.max(W, D) / 50;
   const pt = ([x, y]: XY) => {
     const dx = x - f.A[0], dy = y - f.A[1];
-    return [(dx * f.u[0] + dy * f.u[1]) * 40 / f.W, 50 - (dx * f.n[0] + dy * f.n[1]) * 50 / f.D];
+    return [(dx * f.u[0] + dy * f.u[1]) * W / f.W, D - (dx * f.n[0] + dy * f.n[1]) * D / f.D];
   };
   const points = (r: XY[]) => r.map(p => pt(p).join(",")).join(" ");
-  return <svg className="yardPreview" viewBox="-4 -5 48 61" role="img" aria-label="40 × 50 метр хашааны 2D төлөвлөлт, хэсгүүдийн дугаартай">
-    <rect x="0" y="0" width="40" height="50" fill="#527b35" />
-    <path d="M0 -2H40M0 -3V-1M40 -3V-1M-2 0V50M-3 0H-1M-3 50H-1" fill="none" stroke="currentColor" strokeWidth=".15" />
-    <text x="20" y="-2.8" textAnchor="middle" fontSize="1.8" fill="currentColor">40 м</text>
-    <text x="-2.8" y="25" textAnchor="middle" fontSize="1.8" fill="currentColor" transform="rotate(-90 -2.8 25)">50 м</text>
+  return <svg className="yardPreview" viewBox={`${-4 * k} ${-5 * k} ${W + 8 * k} ${D + 11 * k}`} role="img" aria-label={`${W} × ${D} метр хашааны 2D төлөвлөлт, хэсгүүдийн дугаартай`}>
+    <rect x="0" y="0" width={W} height={D} fill="#527b35" />
+    <path d={`M0 ${-2 * k}H${W}M0 ${-3 * k}V${-k}M${W} ${-3 * k}V${-k}M${-2 * k} 0V${D}M${-3 * k} 0H${-k}M${-3 * k} ${D}H${-k}`} fill="none" stroke="currentColor" strokeWidth={.15 * k} />
+    <text x={W / 2} y={-2.8 * k} textAnchor="middle" fontSize={1.8 * k} fill="currentColor">{W} м</text>
+    <text x={-2.8 * k} y={D / 2} textAnchor="middle" fontSize={1.8 * k} fill="currentColor" transform={`rotate(-90 ${-2.8 * k} ${D / 2})`}>{D} м</text>
     {[...yard.parts, ...yard.shadows, ...yard.roofs, ...yard.foliage].map((p, i) => <polygon key={i} points={points(p.r)} fill={p.color} />)}
     {yard.details.map((p, i) => <polyline key={i} points={points(p.r)} fill="none" stroke={p.color} strokeWidth={p.width * .12} />)}
-    <rect x="-1" y="51" width="42" height="4" fill="#50565a" />
-    <path d="M0 53H40" stroke="#f4f0dd" strokeWidth=".16" strokeDasharray="3 2" />
-    {yard.nums.map(q => { const [x, y] = pt(q.p); return <g key={q.n} transform={`translate(${x} ${y})`}><circle r="1.5" fill="#8a491b" stroke="#fff9e9" strokeWidth=".18" /><text textAnchor="middle" dominantBaseline="central" fill="white" fontSize="1.8" fontWeight="700">{q.n}</text></g>; })}
+    <rect x={-k} y={D + k} width={W + 2 * k} height={4 * k} fill="#50565a" />
+    <path d={`M0 ${D + 3 * k}H${W}`} stroke="#f4f0dd" strokeWidth={.16 * k} strokeDasharray={`${3 * k} ${2 * k}`} />
+    {yard.nums.map((q, i) => { const [x, y] = pt(q.p); return <g key={i} transform={`translate(${x} ${y})`}><circle r={1.5 * Math.min(k, 1.4)} fill="#8a491b" stroke="#fff9e9" strokeWidth=".18" /><text textAnchor="middle" dominantBaseline="central" fill="white" fontSize={1.8 * Math.min(k, 1.4)} fontWeight="700">{q.n}</text></g>; })}
   </svg>;
 }
 
@@ -56,6 +59,7 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
   const [garageTypes, setGarageTypes] = useState<Record<string, HouseType["garage"]>>({});
   const [loadError, setLoadError] = useState("");
   const [selected, setSelected] = useState("");
+  const [size, setSize] = useState<Size>(2000);
   const [showNums, setShowNums] = useState(true);
   const numsOn = useRef(showNums);
   numsOn.current = showNums;
@@ -76,15 +80,15 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
   }, []);
   const result = useMemo(() => {
     if (!ring?.length || version == null || !recs[version]) return { plan: null, error: "" };
-    try { return { plan: runPlan([ring as Multi[number]], { ...DEFAULT_PARAMS, ...recs[version], ...LOTS }), error: "" }; }
+    try { return { plan: runPlan([ring as Multi[number]], { ...DEFAULT_PARAMS, ...recs[version], ...lotsOf(size) }), error: "" }; }
     catch { return { plan: null, error: "Энэ хилийн нэгж талбарын хуваалтыг тооцож чадсангүй." }; }
-  }, [ring, version, recs]);
+  }, [ring, version, recs, size]);
   const { plan } = result;
   const yards = useMemo(() => plan ? plan.lots.map((l, i) => {
     const key = houseTypes[l.id] ?? (scheme === "mixed" ? HOUSE_TYPES[i % HOUSE_TYPES.length].id : scheme);
     const type = HOUSE_TYPES.find(t => t.id === key) ?? HOUSE_TYPES[0];
-    return yardOf(l.id, l.poly, plan.streets, { ...type, garage: garageTypes[l.id] ?? type.garage });
-  }).filter((y): y is Yard => !!y) : [], [plan, scheme, houseTypes, garageTypes]);
+    return yardOf(l.id, l.poly, plan.streets, { ...type, garage: garageTypes[l.id] ?? type.garage }, SIZES[size].w);
+  }).filter((y): y is Yard => !!y) : [], [plan, scheme, houseTypes, garageTypes, size]);
   const asphalt = useMemo(() => plan ? diff(plan.streets, edgeBand(plan.streets, 1.8)) : [], [plan]);
   const roadmarks = useMemo(() => plan ? yardRoadMarks(yards, plan.streets) : [], [plan, yards]);
   // Нийтийн ногоонд: хөлбөмбөг 40×20 м, сагсан бөмбөг 28×15 м, амрах талбай (багтвал)
@@ -205,19 +209,22 @@ export default function ParcelHouses({ ring, version, active, focusKey = 0 }: { 
   const n = plan.metrics.resCount, pop = n * HH_SIZE;
   return <div className="parcelHouses">
     {dim === "3d" && <YardArchitectureInfo {...architecture} />}
-    <Section title="Нэг хашааны төлөвлөлт · 2,000 м²">
+    <div className="segTabs yardSizes" role="tablist" aria-label="Айлын хашааны хэмжээ">
+      {(Object.keys(SIZES).map(Number) as Size[]).map(k => <button key={k} role="tab" aria-selected={size === k} className={size === k ? "on" : ""} onClick={() => { setSize(k); setSelected(""); }}>{fmtN(k)} м²<small>{SIZES[k].w}×{SIZES[k].d} м</small></button>)}
+    </div>
+    <Section title={`Нэг хашааны төлөвлөлт · ${fmtN(size)} м²`}>
       <div className="yardFocus"><select className="sel" aria-label="Харах айлын хашаа" value={preview?.id ?? ""} onChange={e => focusYard(e.target.value)}>{yards.map(y => <option key={y.id} value={y.id}>{y.id}</option>)}</select><button className="btn" disabled={!preview} onClick={() => preview && focusYard(preview.id)}>Газрын зурагт ойртуулах</button></div>
       <label className="suitChk"><input type="checkbox" checked={showNums} onChange={e => setShowNums(e.target.checked)} />Газрын зураг дээрх дугаарыг харуулах</label>
       {preview && <label className="yardTypeSelect"><span>{preview.id} · энэ айлын байшингийн төрөл</span><select className="sel" value={preview.houseType.id} onChange={e => setHouseTypes(current => ({ ...current, [preview.id]: e.target.value }))}>{HOUSE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></label>}
       {preview && <label className="yardTypeSelect"><span>{preview.id} · гаражийн хувилбар</span><select className="sel" value={preview.houseType.garage} onChange={e => setGarageTypes(current => ({ ...current, [preview.id]: e.target.value as HouseType["garage"] }))}>{(Object.keys(GARAGE_LABEL) as HouseType["garage"][]).map(k => <option key={k} value={k}>{GARAGE_LABEL[k]} · {k === "open" ? "1 машин" : `${GARAGE_SIZE.w * GARAGE_SIZE.d} м², 1 машин`}</option>)}</select></label>}
       {preview && <YardPreview yard={preview} />}
       {preview && <div className="yardDimensions"><b>Бүгд ижил масштабтай · нэг айлд нэг машин</b><KV rows={[
-        ["Хашаа", "40 × 50 м · 2,000 м²"],
+        ["Хашаа", `${SIZES[size].w} × ${SIZES[size].d} м · ${fmtN(size)} м²${size === 5000 ? " (урд 40×50 хашаа + тариалан)" : ""}`],
         ["Байшин", `${preview.houseType.w} × ${preview.houseType.d} м · ${fmtN(preview.houseArea)} м² суурь`],
         [preview.houseType.garage === "open" ? "Зогсоол" : "Гараж", preview.houseType.garage === "open" ? `${PARKING_SIZE.w} × ${PARKING_SIZE.d} м · ${fmtN(PARKING_SIZE.w * PARKING_SIZE.d, 1)} м²` : `${GARAGE_SIZE.w} × ${GARAGE_SIZE.d} м · ${fmtN(preview.garageArea, 1)} м²`],
         ["Нэг машин", `${CAR_SIZE.w} × ${CAR_SIZE.d} м · ${fmtN(CAR_SIZE.w * CAR_SIZE.d, 1)} м²`],
       ]} /></div>}
-      <ol className="yardLegend">{(Object.keys(PART) as PartKey[]).map(k => <li key={k}><span>{PART[k].n}</span><i style={{ background: PART[k].color }} /><span>{k === "parking" && preview ? GARAGE_LABEL[preview.houseType.garage] : PART[k].label}{k === "house" && preview && <small>{fmtN(preview.houseArea)} м² суурь · {preview.houseType.floors} давхар · {fmtN(preview.houseArea * preview.houseType.floors)} м² нийт</small>}{k === "parking" && preview && <small>{preview.garageArea ? `${fmtN(preview.garageArea, 1)} м² · ` : ""}1 машин · гудамж руу харсан гарц</small>}</span></li>)}</ol>
+      <ol className="yardLegend">{(Object.keys(PART) as PartKey[]).filter(k => !preview || preview.nums.some(q => q.n === PART[k].n) || preview.bldgs.some(b => b.k === k)).map(k => <li key={k}><span>{PART[k].n}</span><i style={{ background: PART[k].color }} /><span>{k === "parking" && preview ? GARAGE_LABEL[preview.houseType.garage] : PART[k].label}{k === "house" && preview && <small>{fmtN(preview.houseArea)} м² суурь · {preview.houseType.floors} давхар · {fmtN(preview.houseArea * preview.houseType.floors)} м² нийт</small>}{k === "parking" && preview && <small>{preview.garageArea ? `${fmtN(preview.garageArea, 1)} м² · ` : ""}1 машин · гудамж руу харсан гарц</small>}</span></li>)}</ol>
     </Section>
     <Section title="Газрын баланс">
       <KV rows={[["Нийт талбай", `${fmtN(plan.metrics.site / 1e4, 2)} га`], ["Айлын хашаа", `${fmtN(plan.metrics.res)} м²`], ["Дотоод зам, явган зам", `${fmtN(plan.metrics.streets)} м²`], ["Нийтийн ногоон талбай", `${fmtN(plan.metrics.green)} м²`], ["Байшингийн суурь · нийт", `${fmtN(yards.reduce((s, y) => s + y.houseArea, 0))} м²`], ["Байшингийн давхрын талбай · нийт", `${fmtN(yards.reduce((s, y) => s + y.houseArea * y.houseType.floors, 0))} м²`], ["Залгаа гараж", `${yards.filter(y => y.houseType.garage === "attached").length} айл`], ["Тусдаа гараж", `${yards.filter(y => y.houseType.garage === "detached").length} айл`], ["Ил зогсоол", `${yards.filter(y => y.houseType.garage === "open").length} айл`], ["Хүн ам · өрх × 3.6", `${fmtN(pop)} хүн`]]} />

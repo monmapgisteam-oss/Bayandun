@@ -9,11 +9,13 @@ import { dropLayer, modId, MOD_CLICKS, MOD_TIPS, putLayer, utmLayer } from "@/li
 import { useMapCtx } from "./MapCtx";
 
 type FC = GeoJSON.FeatureCollection;
-// Гүн 50 м (хөрш нэгж талбартай ижил), нүүр нь хэмжээнээс
-const PRESETS = [1000, 2000, 4000, 5000].map((size) => ({
-  k: `${size.toLocaleString("en-US")} м²`, w: size / 50, d: 50, t: `${size / 50}×50 м`,
-  note: size === 2000 ? "Хөршийн жишиг — Сансар гудамжны одоо байгаа нэгж талбартай ижил" : "",
-}));
+// Гүн 50 м (хөрш нэгж талбартай ижил), нүүр нь хэмжээнээс; 700 м² нь egazar-ын хөрш нэгж талбартай ижил 20×35 м
+const DIMS: Record<number, [number, number]> = { 700: [20, 35] };
+const PRESETS = [700, 2000, 4000, 5000].map((size) => {
+  const [w, d] = DIMS[size] ?? [size / 50, 50];
+  return { k: `${size.toLocaleString("en-US")} м²`, w, d, t: `${w}×${d} м`,
+    note: size === 2000 ? "Хөршийн жишиг — Сансар гудамжны одоо байгаа нэгж талбартай ижил" : size === 700 ? "Хөршийн жишиг — egazar-ын 700 м² нэгж талбарууд (2112002309 г.м.) 20×35 м" : "" };
+});
 const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 const f1 = (v: number, d = 1) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 const pct = (v: number, t: number) => (t ? (100 * v) / t : 0);
@@ -23,7 +25,7 @@ const llPolygon = (utm: XY[][]) => new Polygon({ rings: utm.map((r) => r.map(toL
 type Group = { angle: number; n: number; dist: number; lotW: number; lotD: number; pitch: number; anchor: XY; example: string };
 // Хилийн файлд хадгалсан санал болгох тохиргоо (web/scripts/design-site-*.mjs)
 type Recommended = Partial<Pick<Params, "angle" | "lotW" | "lotD" | "lotsPerBlock" | "mix" | "minLotRatio" | "anchor" | "rows" | "localW">>;
-const SIZES = [1000, 2000, 4000, 5000];
+const SIZES = [700, 2000, 4000, 5000];
 const INITIAL_LOTS: Partial<Params> = { mix: null, lotW: 40, lotD: 50, lotsPerBlock: 4 };
 // Хилийн хувилбар солиход зөвхөн хил/гудамжны тохиргоо солигдоно — нэгж талбарын хэмжээний сонголт хэвээр
 const boundaryRec = ({ angle, anchor, rows, localW, minLotRatio }: Recommended): Recommended =>

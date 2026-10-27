@@ -78,3 +78,34 @@ for (const feature of boundaries.features.filter(f => /хувилбар [12]$/.t
     for (const v of spaces.venues) assert.ok(v.ring.every(p => inside(p, plan.green)), v.id);
   });
 }
+
+// 02 «Айл бүрт» хашааны хэмжээ: 700 м² (20×35, авсаархан) ба 5,000 м² (100×50, урд хашаа + тариалан)
+for (const feature of boundaries.features.filter(f => /хувилбар \d$/.test(f.properties.name))) for (const [w, d, lpb] of [[20, 35, 8], [100, 50, 2]]) {
+  const pr = feature.properties;
+  const plan = runPlan([[pr.utm49]], { ...DEFAULT_PARAMS, angle: pr.angle, anchor: pr.anchor, rows: pr.rows, localW: pr.localW, minLotRatio: 1, mix: null, lotW: w, lotD: d, lotsPerBlock: lpb, publicLots: 0 });
+  test(`${pr.name}: ${w}×${d} м хашаа — нэг машин, барилга давхцахгүй, хашаан дотроо`, () => {
+    assert.ok(plan.lots.length > 0);
+    for (const [i, lot] of plan.lots.entries()) {
+      const yard = yardOf(lot.id, lot.poly, plan.streets, HOUSE_TYPES[i % HOUSE_TYPES.length], w);
+      assert.ok(yard, lot.id);
+      assert.ok(Math.abs(yard.frame.W - w) < .01 && Math.abs(yard.frame.D - d) < .01, `${lot.id}: ${w} m frontage`);
+      assert.equal(yard.cars.length, 1);
+      for (const b of yard.bldgs) assert.ok(area([[b.r]]) - area(inter([[b.r]], lot.poly)) < .1, `${lot.id}: ${b.k} on its plot`);
+      for (const b of yard.bldgs) assert.ok(area(inter([[yard.cars[0]]], [[b.r]])) < .01, `${lot.id}: car clear of ${b.k}`);
+      for (let a = 0; a < yard.bldgs.length; a++) for (let b = a + 1; b < yard.bldgs.length; b++)
+        assert.ok(area(inter([[yard.bldgs[a].r]], [[yard.bldgs[b].r]])) < .05, `${lot.id}: ${yard.bldgs[a].k}/${yard.bldgs[b].k}`);
+      if (w === 100) assert.ok(yard.nums.some(q => q.n === 11), `${lot.id}: field`);
+    }
+  });
+}
+
+test("700 м² хашаанд хүлэмж 6×4 м байна", () => {
+  const pr = boundaries.features.find(f => /хувилбар 1$/.test(f.properties.name)).properties;
+  const plan = runPlan([[pr.utm49]], { ...DEFAULT_PARAMS, angle: pr.angle, anchor: pr.anchor, rows: pr.rows, localW: pr.localW, minLotRatio: 1, mix: null, lotW: 20, lotD: 35, lotsPerBlock: 8, publicLots: 0 });
+  for (const [i, lot] of plan.lots.entries()) {
+    const yard = yardOf(lot.id, lot.poly, plan.streets, HOUSE_TYPES[i % HOUSE_TYPES.length], 20);
+    const gh = yard.bldgs.filter(b => b.k === "greenhouse");
+    assert.equal(gh.length, 1, lot.id);
+    assert.ok(Math.abs(area([[gh[0].r]]) - 24) < .05, `${lot.id}: 24 м²`);
+  }
+});

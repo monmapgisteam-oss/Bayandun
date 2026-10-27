@@ -29,7 +29,7 @@ export type Params = {
 };
 
 export const MIX_DEFAULT: NonNullable<Params["mix"]> = [
-  { size: 1000, share: 20 }, { size: 2000, share: 40 }, { size: 4000, share: 20 }, { size: 5000, share: 20 },
+  { size: 700, share: 20 }, { size: 2000, share: 40 }, { size: 4000, share: 20 }, { size: 5000, share: 20 },
 ];
 
 export const DEFAULT_PARAMS: Params = {

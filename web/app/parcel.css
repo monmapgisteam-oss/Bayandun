@@ -157,3 +157,7 @@
 .yardHeightInfo summary { cursor: pointer; font-size: 12px; font-weight: 700; }
 .yardHeightInfo p { font-size: 11px; color: var(--ink-3); }
 .yardHeightInfo .tbl th, .yardHeightInfo .tbl td { padding: 6px 4px; font-size: 10px; }
+
+/* 02 · Айл бүрт: хашааны хэмжээний сонголт */
+.yardSizes button { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }
+.yardSizes button small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
