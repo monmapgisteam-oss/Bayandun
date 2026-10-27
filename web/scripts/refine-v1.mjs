@@ -61,14 +61,14 @@ console.log(`сонгосон: ${pick.name} +${hi.toFixed(2)} м → ${area(out)
 
 const rd = (r) => r.map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]);
 const ll = (r) => r.map((q) => P.inverse(q).map((v) => Math.round(v * 1e8) / 1e8));
-const feature = { ...v1, properties: { ...pr, name: "8 га · хувилбар 1", area_m2: Math.round(area(out) * 10) / 10, utm49: rd(ringOut),
+const feature = { ...v1, properties: { ...pr, name: "8 га · хувилбар 3", area_m2: Math.round(area(out) * 10) / 10, utm49: rd(ringOut),
   source: `${pr.source} Баруун хойд буланг хэрэглэгчийн цэнхэр шугамаар (гудамжны шугам) тэгшилж, ${pick.name}-ийг ${hi.toFixed(1)} м сунгасан (scripts/refine-v1.mjs).` },
   geometry: { type: "Polygon", coordinates: [ll(ringOut)] } };
 writeFileSync(v1File, JSON.stringify({ type: "FeatureCollection", features: [feature] }, null, 1));
 for (const f of [new URL("data/site_boundary.geojson", root), new URL("web/public/data/site_boundary.geojson", root)]) {
   const d = JSON.parse(readFileSync(f, "utf8"));
-  d.features = d.features.map((x) => (/хувилбар 1/.test(x.properties.name) ? feature : x));
+  d.features = d.features.map((x) => (/хувилбар 3/.test(x.properties.name) ? feature : x));
   writeFileSync(f, JSON.stringify(d, null, 1));
 }
 const check = runPlan([[ringOut]], params).metrics;
-console.log(`шинэ хувилбар 1: ${check.resCount} талбар (${check.bySize.map((b) => `${b.size}×${b.count}`).join(" ")}), ногоон ${check.green.toFixed(0)} м²`);
+console.log(`шинэ хувилбар 3 (хуучин 1): ${check.resCount} талбар (${check.bySize.map((b) => `${b.size}×${b.count}`).join(" ")}), ногоон ${check.green.toFixed(0)} м²`);

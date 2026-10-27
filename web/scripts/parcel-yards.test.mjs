@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runPlan, DEFAULT_PARAMS, area, inter, inside } from "../lib/plan.ts";
-import { HOUSE_TYPES, commonGardens, yardOf, yardRoadMarks } from "../lib/parcelYards.ts";
+import { HOUSE_TYPES, yardOf, yardRoadMarks } from "../lib/parcelYards.ts";
+import { communitySpaces } from "../lib/communitySpaces.ts";
 
 const boundaries = JSON.parse(readFileSync(new URL("../public/data/site_boundary.geojson", import.meta.url), "utf8"));
 for (const feature of boundaries.features.filter(f => /хувилбар [12]$/.test(f.properties.name))) {
@@ -71,9 +72,9 @@ for (const feature of boundaries.features.filter(f => /хувилбар [12]$/.t
     assert.ok(marks.length > yards.length);
     for (const r of marks) for (const p of r) assert.ok(inside(p, plan.streets));
   });
-  test(`${pr.name}: shared gardens stay inside green land`, () => {
-    const gardens = commonGardens(plan.green, plan.params.angle);
-    assert.ok(gardens.length > 0);
-    for (const shape of gardens) assert.ok(shape.r.every(p => inside(p, plan.green)));
+  // Хөлбөмбөг, сагсан бөмбөг, амрах талбай (02 «Айл бүрт»): ногоон үлдэгдэлд багтвал л тавина, багтсан нь ногоон дотроо
+  test(`${pr.name}: community courts stay inside green land`, () => {
+    const spaces = communitySpaces([plan.green], plan.params.angle);
+    for (const v of spaces.venues) assert.ok(v.ring.every(p => inside(p, plan.green)), v.id);
   });
 }

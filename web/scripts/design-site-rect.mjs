@@ -95,8 +95,8 @@ const out = {
       neighborGroups: groups.map((g) => ({ angle: g.angle, n: g.n, dist: g.dist, lotW: g.lotW, lotD: g.lotD, pitch: g.pitch, anchor: rd([g.anchor])[0], example: g.ids[0] })),
       source: `ТААМАГЛАЛ: ${KEY_PARCEL}-ийн бүлгийн чиглэлтэй (${G.angle}°) тэгш өнцөгт; шороон замын тэнхлэгээс ≥${ROAD_SETBACK} м, хөрш нэгж талбараас ≥${PARCEL_GAP} м, урд тал нь хөршөөс ≤${SOUTH_MAX} м (scripts/design-site-rect.mjs).`,
       utm49: rd(ring) }, geometry: { type: "Polygon", coordinates: [ll(ring)] } },
-    // Хувилбар 1 — өмнөх хил (design-site-neighbor.mjs → data/site_boundary_v1.geojson)
-    ...(v1 ? [{ ...v1, properties: { ...v1.properties, name: "8 га · хувилбар 1" } }] : []),
+    // Хувилбар 3 (2026-10-27 хүртэл 1) — өмнөх хил (design-site-neighbor.mjs → data/site_boundary_v1.geojson)
+    ...(v1 ? [{ ...v1, properties: { ...v1.properties, name: "8 га · хувилбар 3" } }] : []),
     ...sketches,
   ],
 };

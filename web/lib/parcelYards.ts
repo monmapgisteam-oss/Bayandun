@@ -81,7 +81,8 @@ export function yardOf(id: string, poly: Multi, streets: Multi, house: HouseType
   const line = (k: PartKey, color: string, width: number, pts: XY[]) => out.details.push({ k, color, width, r: pts.map(([x, y]) => P(x, y)) });
   const number = (k: PartKey, x: number, y: number) => out.nums.push({ n: PART[k].n, p: P(x, y) });
   const w = house.w / sa, d = house.d / sd;
-  const y0 = 14, x0 = 14.5 - w / 2, x1 = x0 + w, y1 = y0 + d;
+  // Гүехэн (40 м) хашаанд залгаа гаражийн өмнөх зогсоол багтахаар байшинг арагш шилжүүлнэ: 1 м + зогсоол + гараж + 0.3 м
+  const y0 = Math.max(14, (sd + PARKING_SIZE.d + GARAGE_SIZE.d + 0.3) / sd), x0 = 14.5 - w / 2, x1 = x0 + w, y1 = y0 + d;
   // Attached garages share the house's front wall. Detached garages have their own apron and gate.
   const garageW = GARAGE_SIZE.w / sa, garageD = GARAGE_SIZE.d / sd;
   const gx = house.garage === "attached" ? x1 - garageW : 29, gy = house.garage === "attached" ? y0 - garageD : 8;

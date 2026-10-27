@@ -116,7 +116,8 @@ export default function UrbanPlan({ zones, zoneSel, setZoneSel, active = true }:
   // Анхдагч: суурьшлын бүс; эрүүл ахуйн бүс — хүснэгтэд кокс химийг I анги гэж заасан
   useEffect(() => {
     if (!active || !zones) return;
-    if (!zones.some(z=>z.oid===zoneSel&&kindOf(z.name,z.type)==="residential")) { const r = zones.find((z) => kindOf(z.name, z.type) === "residential"); if (r) setZoneSel(r.oid); }
+    // Анх нээхэд үргэлж «хувилбар 1» (байхгүй бол эхний суурьшлын бүс)
+    if (!zones.some(z=>z.oid===zoneSel&&kindOf(z.name,z.type)==="residential")) { const res = zones.filter((z) => kindOf(z.name, z.type) === "residential"), r = res.find((z) => /хувилбар 1$/.test(z.name)) ?? res[0]; if (r) setZoneSel(r.oid); }
     setSanitary((s) => Object.keys(s).length ? s : Object.fromEntries(zones.filter((z) => /Кокс/i.test(z.name)).map((z) => [z.oid, "I"])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zones,zoneSel,active]);
